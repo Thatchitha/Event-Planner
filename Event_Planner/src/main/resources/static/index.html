@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Event Manager</title>
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          background: linear-gradient(to right, #ffecd2, #fcb69f);
+          padding: 20px;
+          margin: 0;
+        }
+
+        .container {
+          max-width: 750px;
+          margin: auto;
+          background: rgba(255, 255, 255, 0.97);
+          padding: 20px;
+          border-radius: 12px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        label {
+          font-weight: bold;
+          display: block;
+          margin-top: 10px;
+        }
+
+        input, select {
+          width: 60%;
+          padding: 6px;
+          margin: 5px 0 10px 0;
+          font-size: 14px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+        }
+
+        input[type="text"], input[type="date"], input[type="time"], select {
+          display: block;
+        }
+
+        button {
+          padding: 8px 12px;
+          margin: 5px;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+
+        .add { background-color: #4CAF50; }
+        .update { background-color: #2196F3; }
+        .refresh { background-color: #555; }
+
+        table {
+          width: 100%;
+          margin-top: 20px;
+          border-collapse: collapse;
+        }
+
+        th, td {
+          padding: 10px;
+          border: 1px solid #ccc;
+        }
+
+        th {
+          background-color: #f4f4f4;
+        }
+
+        input::placeholder {
+          font-style: italic;
+          color: #999;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Event Manager</h2>
+
+    <label for="name">Your Name:</label>
+    <input type="text" id="name" placeholder="Enter your name">
+
+    <label for="eventName">Event Name:</label>
+    <input type="text" id="eventName" placeholder="Enter event name">
+
+    <label for="date">Date:</label>
+    <input type="date" id="date">
+
+    <label for="time">Time:</label>
+    <input type="time" id="time">
+
+    <label for="location">Location:</label>
+    <input type="text" id="location" placeholder="Enter location">
+
+    <label for="status">Status:</label>
+    <select id="status">
+        <option value="">-- Select Status --</option>
+        <option value="PENDING">PENDING</option>
+        <option value="CANCELLED">CANCELLED</option>
+        <option value="COMPLETED">COMPLETED</option>
+    </select>
+
+    <div style="text-align:center">
+        <button class="add" onclick="addEvent()">Add</button>
+        <button class="update" onclick="updateEvent()">Update</button>
+        <button class="refresh" onclick="getAllEvents()">Get All</button>
+    </div>
+
+    <label for="searchInput">Search by Name:</label>
+    <input type="text" id="searchInput" placeholder="Search name">
+
+    <label for="deleteInput">Delete by Name:</label>
+    <input type="text" id="deleteInput" placeholder="Delete name">
+
+    <table id="eventTable"></table>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8080/events";
+
+    function getInput() {
+      return {
+        name: document.getElementById("name").value.trim(),
+        eventName: document.getElementById("eventName").value.trim(),
+        date: document.getElementById("date").value,
+        time: document.getElementById("time").value,
+        location: document.getElementById("location").value.trim(),
+        status: document.getElementById("status").value
+      };
+    }
+
+    function clearInputs() {
+      document.querySelectorAll("input, select").forEach(el => el.value = "");
+    }
+
+    function renderTable(events) {
+      const table = document.getElementById("eventTable");
+      table.innerHTML = `
+        <tr>
+          <th>Name</th><th>Event</th><th>Date</th><th>Time</th><th>Location</th><th>Status</th>
+        </tr>`;
+      events.forEach(e => {
+        table.innerHTML += `
+          <tr>
+            <td>${e.name}</td>
+            <td>${e.eventName}</td>
+            <td>${e.date}</td>
+            <td>${e.time}</td>
+            <td>${e.location}</td>
+            <td>${e.status}</td>
+          </tr>`;
+      });
+    }
+
+    function addEvent() {
+      const event = getInput();
+      // Mandatory field check
+      if (!event.name || !event.eventName || !event.date || !event.time || !event.location || !event.status) {
+        alert("Please fill in all fields before adding.");
+        return;
+      }
+
+      fetch(`${baseUrl}/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(event)
+      })
+      .then(res => res.json())
+      .then(added => {
+        alert("Event added!");
+        renderTable([added]);
+        clearInputs();
+      })
+      .catch(err => alert("Add failed: " + err.message));
+    }
+
+    function updateEvent() {
+      fetch(`${baseUrl}/update`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(getInput())
+      })
+      .then(res => res.json())
+      .then(updatedEvent => {
+        alert("Event updated");
+        renderTable([updatedEvent]);
+        clearInputs();
+      })
+      .catch(err => alert("Update failed: " + err.message));
+    }
+
+    function getAllEvents() {
+      fetch(`${baseUrl}/get/all`)
+        .then(res => res.json())
+        .then(events => renderTable(events))
+        .catch(() => alert("Failed to fetch events"));
+    }
+
+    function searchEvent(name) {
+      fetch(`${baseUrl}/search?name=${encodeURIComponent(name)}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Event not found");
+          return res.json();
+        })
+        .then(event => renderTable([event]))
+        .catch(err => alert("Search error: " + err.message));
+    }
+
+    function deleteEvent(name) {
+      fetch(`${baseUrl}/delete?name=${encodeURIComponent(name)}`, { method: "DELETE" })
+        .then(() => {
+          alert("Event deleted");
+          getAllEvents();
+        })
+        .catch(() => alert("Delete failed"));
+    }
+
+    // Enter key for search/delete
+    document.getElementById("searchInput").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        const val = this.value.trim();
+        if (val) searchEvent(val);
+        this.value = "";
+      }
+    });
+
+    document.getElementById("deleteInput").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        const val = this.value.trim();
+        if (val) deleteEvent(val);
+        this.value = "";
+      }
+    });
+</script>
+</body>
+</html>
